@@ -8,7 +8,7 @@ option(LIBJ_BUILD_GTEST "Build Google tests" OFF)
 option(LIBJ_USE_CXX11 "Use C++11" OFF)
 option(LIBJ_USE_BDW_GC "Use BDW-GC" OFF)
 option(LIBJ_USE_EXCEPTION "Use exceptions" OFF)
-option(LIBJ_USE_IV_AERO "Use iv::aero" OFF)
+option(LIBJ_USE_IV_AERO "Use iv::aero" ON)
 
 message(STATUS "LIBJ_BUILD_GTEST=${LIBJ_BUILD_GTEST}")
 message(STATUS "LIBJ_USE_CXX11=${LIBJ_USE_CXX11}")
@@ -171,10 +171,10 @@ add_library(regexp STATIC
     src/glue/regexp.cpp
 )
 
-if(LIBJ_USE_IV_AERO OR LIBJ_USE_CXX11)
+if((LIBJ_USE_IV_AERO AND NOT APPLE) OR LIBJ_USE_CXX11)
 set_target_properties(regexp PROPERTIES
     COMPILE_FLAGS "--std=c++0x")
-endif(LIBJ_USE_IV_AERO OR LIBJ_USE_CXX11)
+endif((LIBJ_USE_IV_AERO AND NOT APPLE) OR LIBJ_USE_CXX11)
 
 ## v8dtoa
 add_library(v8dtoa STATIC
