@@ -8,11 +8,13 @@ option(LIBJ_BUILD_GTEST "Build Google tests" OFF)
 option(LIBJ_USE_CXX11 "Use C++11" OFF)
 option(LIBJ_USE_BDW_GC "Use BDW-GC" OFF)
 option(LIBJ_USE_EXCEPTION "Use exceptions" OFF)
+option(LIBJ_USE_IV_AERO "Use iv::aero" OFF)
 
 message(STATUS "LIBJ_BUILD_GTEST=${LIBJ_BUILD_GTEST}")
 message(STATUS "LIBJ_USE_CXX11=${LIBJ_USE_CXX11}")
 message(STATUS "LIBJ_USE_BDW_GC=${LIBJ_USE_BDW_GC}")
 message(STATUS "LIBJ_USE_EXCEPTION=${LIBJ_USE_EXCEPTION}")
+message(STATUS "LIBJ_USE_IV_AERO=${LIBJ_USE_IV_AERO}")
 
 # find libraries -----------------------------------------------------------------------------------
 
@@ -33,6 +35,14 @@ if(LIBJ_BUILD_GTEST)
         message(FATAL_ERROR "libpthread not found.")
     endif()
 endif(LIBJ_BUILD_GTEST)
+
+if(NOT LIBJ_USE_IV_AERO)
+    message(STATUS "use pcre16 instead of iv::aero")
+    find_library(PCRE16 pcre16 REQUIRED)
+    if(NOT EXISTS ${PCRE16})
+        message(FATAL_ERROR "libpcre16 not found.")
+    endif()
+endif(NOT LIBJ_USE_IV_AERO)
 
 # configure ----------------------------------------------------------------------------------------
 
@@ -87,6 +97,13 @@ set(libj-deps
     regexp
     v8dtoa
 )
+
+if(NOT LIBJ_USE_IV_AERO)
+    set(libj-deps
+        pcre16
+        ${libj-deps}
+    )
+endif(NOT LIBJ_USE_IV_AERO)
 
 if(APPLE)
     set(libj-deps
@@ -154,10 +171,10 @@ add_library(regexp STATIC
     src/glue/regexp.cpp
 )
 
-if(NOT APPLE OR LIBJ_USE_CXX11)
+if(LIBJ_USE_IV_AERO OR LIBJ_USE_CXX11)
 set_target_properties(regexp PROPERTIES
     COMPILE_FLAGS "--std=c++0x")
-endif(NOT APPLE OR LIBJ_USE_CXX11)
+endif(LIBJ_USE_IV_AERO OR LIBJ_USE_CXX11)
 
 ## v8dtoa
 add_library(v8dtoa STATIC
