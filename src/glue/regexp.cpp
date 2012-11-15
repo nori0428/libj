@@ -1,12 +1,11 @@
 // Copyright (c) 2012 Plenluno All rights reserved.
 
-#ifdef LIBJ_USE_IV_AERO
-# include <iv/aero/aero.h>
-#else
+#ifdef LIBJ_USE_PCRE16
 # include <pcre.h>
+#else
+# include <iv/aero/aero.h>
 #endif
 #include <vector>
-#include <iostream>
 
 #include "./regexp.h"
 
@@ -17,17 +16,16 @@ RegExp* RegExp::create(const U16String& pattern, unsigned int flags) {
     RegExp* re = new RegExp(pattern, flags);
     int error = 0;
 
-#ifdef LIBJ_USE_IV_AERO
+#ifdef LIBJ_USE_PCRE16
+    const char* errstr;
+    int fs = (flags & IGNORE_CASE ? PCRE_CASELESS : 0)
+           | (flags & MULTILINE ? PCRE_MULTILINE : 0);
+    re->code_ = pcre16_compile(pattern.c_str(), fs, &errstr, &error, NULL);
+#else
     iv::core::Space space;
     int fs = (flags & IGNORE_CASE ? iv::aero::IGNORE_CASE : 0)
            | (flags & MULTILINE ? iv::aero::MULTILINE : 0);
     re->code_ = iv::aero::Compile(&space, pattern, fs, &error);
-#else
-    const char* errstr;
-
-    int fs = (flags & IGNORE_CASE ? PCRE_CASELESS : 0)
-           | (flags & MULTILINE ? PCRE_MULTILINE : 0);
-    re->code_ = pcre16_compile(pattern.c_str(), fs, &errstr, &error, NULL);
 #endif
 
     if (!error && re->code_) {
@@ -39,10 +37,10 @@ RegExp* RegExp::create(const U16String& pattern, unsigned int flags) {
 }
 
 RegExp::~RegExp() {
-#ifdef LIBJ_USE_IV_AERO
-    delete static_cast<iv::aero::Code*>(code_);
-#else
+#ifdef LIBJ_USE_PCRE16
     free(static_cast<pcre16*>(code_));
+#else
+    delete static_cast<iv::aero::Code*>(code_);
 #endif
 
 }
@@ -64,7 +62,21 @@ bool RegExp::execute(
     int offset,
     std::vector<int>& captures) const {
 
-#ifdef  LIBJ_USE_IV_AERO
+#ifdef LIBJ_USE_PCRE16
+    pcre16* code = static_cast<pcre16*>(code_);
+    captures.clear();
+
+# define DEFAULT_OVECTOR_SIZE (32) // XXX
+    captures.reserve(DEFAULT_OVECTOR_SIZE * 3);
+# undef DEFAULT_OVECTOR_SIZE
+
+    size_t n = captures.capacity();
+    for (size_t i = 0; i < n; i++)
+        captures.push_back(-1);
+    int res = pcre16_exec(code, NULL, str.c_str(), str.length(),
+                          offset, 0, captures.data(), n);
+    return (res > 0);
+#else
     static iv::aero::VM vm;
     iv::aero::Code* code = static_cast<iv::aero::Code*>(code_);
     captures.clear();
@@ -73,22 +85,6 @@ bool RegExp::execute(
         captures.push_back(-1);
     int res = vm.Execute(code, str, captures.data(), offset);
     return res == iv::aero::AERO_SUCCESS;
-#else
-
-    pcre16* code = static_cast<pcre16*>(code_);
-    captures.clear();
-
-// be same value as iv::aero::Code*->captures() * 2
-#define	DEFAULT_CAPTURE_CAPACITY	(4)
-    captures.reserve(DEFAULT_CAPTURE_CAPACITY * 3);
-#undef	DEFAULT_CAPTURE_CAPACITY
-
-    size_t n = captures.capacity();
-    for (size_t i = 0; i < n; i++)
-        captures.push_back(-1);
-    int res = pcre16_exec(code, NULL, str.c_str(), str.length(),
-                          offset, 0, captures.data(), n);
-    return (res > 0);
 #endif
 }
 
